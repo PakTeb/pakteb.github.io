@@ -1,0 +1,221 @@
+﻿<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pak-teb | فروشگاه پاک طبxfx</title>
+    <style>
+        :root { --green: #2d5a27; --gold: #d4af37; --glass: rgba(255,255,255,0.1); }
+        body { font-family: Tahoma, sans-serif; background: #0d140d; color: white; margin: 0; direction: rtl; }
+        .glass { background: var(--glass); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 15px; }
+        .container { max-width: 800px; margin: auto; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 20px; }
+        .product-card { padding: 15px; text-align: center; margin-bottom: 15px; transition: 0.3s; }
+        .product-card:hover { transform: translateY(-5px); border-color: var(--gold); }
+        .btn { padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; transition: 0.3s; }
+        .btn-gold { background: var(--gold); color: #000; }
+        .btn-green { background: var(--green); color: white; }
+        input, textarea { width: 100%; padding: 10px; margin: 5px 0; border-radius: 8px; border: 1px solid #444; background: #222; color: white; box-sizing: border-box; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 400px; padding: 20px; z-index: 100; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 50; }
+        #cart-btn { position: fixed; bottom: 20px; left: 20px; padding: 15px; border-radius: 50px; background: var(--gold); color: black; display: none; cursor: pointer; z-index: 90; }
+        .order-item { border-bottom: 1px solid #444; padding: 10px 0; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="closeModals()"></div>
+<div class="container">
+    <header class="glass">
+        <div style="font-size: 24px; color: var(--gold);">PAKTEB</div>
+        <div style="display: flex; gap: 5px;">
+            <input type="text" id="promoInput" placeholder="کد تخفیف" style="width: 120px; margin:0;">
+            <button class="btn btn-green" onclick="handleSecretInput()" style="width: auto; margin:0; padding: 5px 10px;">ورود</button>
+        </div>
+    </header>
+
+    <div id="productsContainer" class="product-grid"></div>
+    <div id="emptyMsg" style="text-align: center; color: #777; margin-top: 50px; display: none;">در حال حاضر محصولی نیست.</div>
+
+    <footer style="text-align: center; margin-top: 40px; font-size: 12px; color: #666;">
+        پشتیبانی: support.pakteb@gmail.com | 📞 09132502581
+    </footer>
+</div>
+
+<div id="cart-btn" onclick="openCheckout()">🛒 سبد (<span id="cart-count">0</span>)</div>
+
+<!-- مودال خرید -->
+<div id="checkoutModal" class="modal glass">
+    <h3>🛒 تکمیل سفارش</h3>
+    <div id="cartItemsList" style="font-size: 14px; margin-bottom: 10px;"></div>
+    <p style="font-size: 12px; color: var(--gold);">لطفاً برای درست انجام شدن خرید شماره موبایل فعال و جیمیل خود (اختیاری) را وارد کنید:</p>
+    <input type="text" id="cPhone" placeholder="شماره موبایل">
+    <input type="text" id="cAddress" placeholder="آدرس">
+    <input type="email" id="cEmail" placeholder="جیمیل (اختیاری)">
+    <button class="btn btn-gold" onclick="processPayment()">پرداخت در زرین‌پال</button>
+</div>
+
+<!-- مودال مدیریت (Admin) -->
+<div id="adminModal" class="modal glass" style="max-width: 500px;">
+    <h3 style="color: var(--gold);">🛠 پنل مدیریت</h3>
+    <div style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;">
+        <h4 style="font-size: 14px;">افزودن محصول:</h4>
+        <input type="text" id="pName" placeholder="نام محصول">
+        <input type="text" id="pDesc" placeholder="توضیحات">
+        <input type="number" id="pPrice" placeholder="قیمت (تومان)">
+        <button class="btn btn-green" onclick="addProduct()">ثبت محصول</button>
+    </div>
+    <div style="max-height: 150px; overflow-y: auto;">
+        <h4 style="font-size: 14px;">سفارشات جدید:</h4>
+        <div id="adminOrders"></div>
+    </div>
+    <div style="margin-top: 10px;">
+        <h4 style="font-size: 14px;">جستجوی کد پیگیری:</h4>
+        <input type="text" id="trackCode" placeholder="کد پیگیری...">
+        <button class="btn btn-gold" onclick="trackOrder()">بررسی</button>
+        <div id="trackResult" style="font-size: 12px; margin-top: 5px;"></div>
+    </div>
+    <div style="display: flex; gap: 5px; margin-top: 10px;">
+        <input type="number" id="statBuyers" placeholder="تعداد خریدار" style="font-size: 10px;">
+        <button class="btn btn-green" onclick="updateStats()" style="font-size: 10px; padding: 5px;">آپدیت آمار</button>
+    </div>
+</div>
+
+<!-- مودال رسید -->
+<div id="receiptModal" class="modal glass" style="text-align: center;">
+    <h3 style="color: var(--gold);">✅ خرید انجام شد</h3>
+    <p>به زودی دردسترس شما قرار میگیرد</p>
+    <div id="finalCode" style="font-size: 22px; letter-spacing: 3px; margin: 15px 0;"></div>
+    <button class="btn btn-green" onclick="closeModals()">متوجه شدم</button>
+</div>
+
+<script>
+    let products = JSON.parse(localStorage.getItem('p_db')) || [];
+    let orders = JSON.parse(localStorage.getItem('o_db')) || [];
+    let stats = JSON.parse(localStorage.getItem('s_db')) || { buyers: 0 };
+    let cart = [];
+
+    function render() {
+        const container = document.getElementById('productsContainer');
+        container.innerHTML = '';
+        document.getElementById('emptyMsg').style.display = products.length ? 'none' : 'block';
+        products.forEach((p, i) => {
+            container.innerHTML += `
+                <div class="product-card glass">
+                    <div style="font-weight: bold; font-size: 18px;">${p.name}</div>
+                    <div style="font-size: 13px; color: #ccc; margin: 5px 0;">${p.desc}</div>
+                    <div class="price">${p.price.toLocaleString()} تومان</div>
+                    <button class="btn btn-gold" onclick="addToCart(${i})">افزودن به سبد</button>
+                </div>`;
+        });
+        document.getElementById('cart-count').innerText = cart.length;
+        document.getElementById('cart-btn').style.display = cart.length ? 'block' : 'none';
+    }
+
+    function handleSecretInput() {
+        const val = document.getElementById('promoInput').value;
+        if (val === 'owner0369') {
+            openModal('adminModal');
+            renderAdmin();
+        } else if (val === '10OFF') { // نمونه کد تخفیف
+            alert('کد تخفیف فعال شد! (۱۰ درصد)');
+            // اینجا می‌توانی منطق تخفیف را اضافه کنی
+        } else {
+            alert('کد اشتباه است');
+        }
+    }
+
+    function addProduct() {
+        const name = document.getElementById('pName').value;
+        const desc = document.getElementById('pDesc').value;
+        const price = parseInt(document.getElementById('pPrice').value);
+        if (!name || !price) return alert('نام و قیمت را پر کنید');
+        products.push({ name, desc, price });
+        localStorage.setItem('p_db', JSON.stringify(products));
+        render();
+        alert('محصول اضافه شد');
+    }
+
+    function addToCart(i) {
+        cart.push(products[i]);
+        render();
+    }
+
+    function openCheckout() { openModal('checkoutModal'); renderCartSummary(); }
+
+    function renderCartSummary() {
+        const list = document.getElementById('cartItemsList');
+        let total = cart.reduce((sum, p) => sum + p.price, 0);
+        list.innerHTML = cart.map(p => `<div>${p.name} - ${p.price.toLocaleString()}</div>`).join('');
+        list.innerHTML += `<div style="margin-top:10px; font-weight:bold; color:var(--gold);">جمع کل: ${total.toLocaleString()} تومان</div>`;
+    }
+
+    function processPayment() {
+        const phone = document.getElementById('cPhone').value;
+        const addr = document.getElementById('cAddress').value;
+        if (!phone || !addr) return alert('موبایل و آدرس الزامی است');
+
+        const code = 'PK-' + Math.floor(Math.random() * 900000 + 100000);
+        const order = {
+            code, 
+            phone, 
+            addr, 
+            email: document.getElementById('cEmail').value,
+            items: cart.map(p => p.name).join(', '),
+            total: cart.reduce((sum, p) => sum + p.price, 0),
+            status: 'pending'
+        };
+
+        orders.push(order);
+        localStorage.setItem('o_db', JSON.stringify(orders));
+        
+        // آپدیت آمار
+        stats.buyers++;
+        localStorage.setItem('s_db', JSON.stringify(stats));
+
+        cart = [];
+        render();
+        closeModals();
+        document.getElementById('finalCode').innerText = code;
+        openModal('receiptModal');
+    }
+
+    function renderAdmin() {
+        const list = document.getElementById('adminOrders');
+        list.innerHTML = orders.map((o, i) => `
+            <div class="order-item">
+                <b>${o.code}</b> | ${o.phone}<br>
+                ${o.items} <br>
+                <button class="btn btn-green" style="padding:2px; font-size:10px;" onclick="completeOrder(${i})">تکمیل ✅</button>
+            </div>
+        `).join('');
+    }
+
+    function completeOrder(i) {
+        orders.splice(i, 1);
+        localStorage.setItem('o_db', JSON.stringify(orders));
+        renderAdmin();
+    }
+
+    function trackOrder() {
+        const c = document.getElementById('trackCode').value;
+        const res = orders.find(o => o.code === c);
+        document.getElementById('trackResult').innerText = res ? `وضعیت: ${res.status === 'pending' ? 'در دست آماده‌سازی' : 'تحویل شده'}` : 'کد پیدا نشد';
+    }
+
+    function updateStats() {
+        stats.buyers = parseInt(document.getElementById('statBuyers').value);
+        localStorage.setItem('s_db', JSON.stringify(stats));
+        alert('آمار ذخیره شد');
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'block'; document.getElementById('overlay').style.display = 'block'; }
+    function closeModals() { 
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); 
+        document.getElementById('overlay').style.display = 'none'; 
+    }
+
+    render();
+</script>
+</body>
+</html>
